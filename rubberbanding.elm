@@ -21,14 +21,14 @@ mouseDownOrigin = foldp (\n aList ->
 
 
 
-  
-main = lift3 scene mouseDownOrigin Mouse.position Window.height
+main = scene <~ mouseDownOrigin ~ Mouse.position
+
 
 
 -- DISPLAY    
-scene origin (w,h) windowHeight=
+scene origin (w,h) =
         let 
-            (dx, dy) = decode origin (w,h) windowHeight
+            (dx, dy) = decode origin (w,h) 
             c = collage w h
                 [ rect (toFloat w) (toFloat h) |> filled blue |> move (dx, dy)
                 ]
@@ -40,9 +40,9 @@ textDraw origin destination =
   [x] -> (x, destination)
   _ -> (destination, destination)
 
-decode origin  (r1, r2) windowHeight=
+decode origin  (r1, r2) =
     case origin of
-    [(x,y)] -> ((toFloat x), toFloat y  - (toFloat windowHeight / 2))
+    [(x,y)] -> ((toFloat x), -1 * toFloat y )
     _ -> (toFloat r1, toFloat r2)
            
 isEven n = n `mod` 2 == 0
