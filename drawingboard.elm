@@ -23,7 +23,7 @@ updateDrawingBounds (state, (x,y)) bounds = case state of
                                                                , cur_x <- x
                                                                , cur_y <- y}
                                                                
-                                          Released -> {start_x = -1, start_y = -1, cur_x = -1, cur_y = -1}
+                                          Released -> bounds
 drawRect (aState,_) = 
                 let 
                       cw = abs <| aState.start_x - aState.cur_x
