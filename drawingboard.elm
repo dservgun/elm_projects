@@ -62,27 +62,26 @@ updateDrawingBounds (iState, (x,y)) bounds = case iState of
                                                     _ -> bounds.cur_y
                                             ,state  <- iState}
 
-drawBoundingRect aShape = 
+drawBoundingRect (width, height) aShape = 
                       let
-                        (dx, dy) = translate aShape
+                        (dx, dy) = translate (width, height) aShape
                         cw = abs <| aShape.cur_x - aShape.start_y
                         ch = abs <| aShape.cur_y - aShape.start_y
-                        s = rect (toFloat cw)
-                          (toFloat ch)
+                        s = rect (toFloat cw) (toFloat ch)
                         |> filled blue
-                        |> move ((toFloat dx), (toFloat dy))
+                        |> move (dx, dy)
                       in
                         s
 
-translate aShape = (aShape.start_x, aShape.start_y)
+translate (width, height) aShape = ((toFloat aShape.cur_x) - (toFloat width / 2), (toFloat height / 2 - (toFloat aShape.cur_y)))
 
 drawRect (width, height) (aShape,aList) = 
                 let 
-                      s = drawBoundingRect aShape
-                      hist = drawHistory aList
+                      s = drawBoundingRect (width, height) aShape
+                      hist = drawHistory (width, height) aList
                     in 
-                      layers [collage width height ([s] ++ hist), message, asText aList]
-drawHistory aList = map drawBoundingRect aList
+                      layers [collage width height ([s] ++ hist), message]
+drawHistory (width, height) aList = map (\s -> drawBoundingRect (width, height) s) aList
 scaleMousePosition (width, height) (x,y) = (x, y)
 
 main = let 
