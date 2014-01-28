@@ -67,7 +67,7 @@ drawBoundingRect aShape =
                         ch = abs <| aShape.cur_y - aShape.start_y
                         s = rect (toFloat cw)
                           (toFloat ch)
-                        |> outlined (dotted blue)
+                        |> filled blue
                         |> move ((toFloat dx), (toFloat dy))
                       in
                         s
