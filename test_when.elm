@@ -5,10 +5,12 @@ import Mouse
 -- store the state using a fold function: that is the cleanest 
 -- way to maintain memory
 
-initial = {down = False, start_x = -1}
-updateState (mouseDown, (xpos,_)) state =
+initial = {down = False, start_x = -1, start_y = -1}
+updateState (mouseDown, (xpos,ypos)) state =
   {state | down <- mouseDown,
            start_x <- if | state.down -> xpos
+                         | otherwise -> -1
+           ,start_y <- if | state.down -> ypos
                          | otherwise -> -1}
 
 main = asText <~ foldp updateState initial (lift2 (,) Mouse.isDown Mouse.position)

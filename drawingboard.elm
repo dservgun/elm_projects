@@ -5,7 +5,6 @@ that can be rubberbandable.
 import Mouse
 import Window
 
-shape = {x = -1, y = -1, w = -1, h = -1}
 shapes = []
 data DragState = Started | Released
 
@@ -15,6 +14,17 @@ areEqual s1 s2 = (s1.start_x == s2.start_x && s1.start_y == s2.start_y
                     && s1.cur_x == s2.cur_x && s1.cur_y == s2.cur_y)
 isValid s = s.start_x > 0 || s.start_y > 0 || s.cur_x > 0 || s.cur_y > 0
 
+contains (x,y) aShape = aShape.start_x <= x &&  x <= aShape.cur_x
+                        && aShape.start_y <= y && y <= aShape.cur_y
+
+queryShape (x,y) aList = 
+            let 
+                filteredList = filter (\aShape -> contains (x,y) aShape) aList
+            in 
+                case filteredList of
+                    [] -> drawing_bounds
+                    h::t -> h
+                    _ -> drawing_bounds
 updateShapes (s, aState) aList = 
     case aState of
     Released -> case aList of 
