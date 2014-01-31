@@ -92,11 +92,13 @@ drawRect (width, height) (aShape,aList) =
                     in 
                       layers [collage width height ([s] ++ hist), message]
 drawHistory (width, height) aList = map (\s -> drawBoundingRect (width, height) s) aList
-scaleMousePosition (width, height) (x,y) = (x, y)
+
 
 main = let 
             currentDragState = foldp updateDragState dragState Mouse.isDown
-            bounds = foldp updateDrawingBounds drawing_bounds(lift2 (,) currentDragState (lift2 scaleMousePosition Window.dimensions Mouse.position))
+            shapeExists = lift (\s -> queryShape s shapes) Mouse.position
+            bounds = foldp updateDrawingBounds  drawing_bounds (lift2 (,) 
+                    currentDragState Mouse.position)
             shapeList = foldp updateShapes shapes (lift2 (,) bounds currentDragState)            
        in            
             lift2 drawRect Window.dimensions (lift2 (,) bounds shapeList)
