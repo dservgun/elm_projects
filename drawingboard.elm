@@ -7,7 +7,7 @@ import Window
 
 shapes = []
 data DragState = Started | Released
-
+clearGrey = rgba 111 111 111 0.6
 dragState = Released
 drawing_bounds = {state = Released, start_x = -1, start_y = -1, cur_x = -1, cur_y = -1}
 areEqual s1 s2 = (s1.start_x == s2.start_x && s1.start_y == s2.start_y 
@@ -78,7 +78,7 @@ drawBoundingRect (width, height) aShape =
                         cw = abs <| aShape.cur_x - aShape.start_y
                         ch = abs <| aShape.cur_y - aShape.start_y
                         s = rect (toFloat cw) (toFloat ch)
-                        |> filled blue
+                        |> filled clearGrey
                         |> move (dx, dy)
                       in
                         s
