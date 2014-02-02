@@ -17,6 +17,8 @@ isValid s = s.start_x > 0 || s.start_y > 0 || s.cur_x > 0 || s.cur_y > 0
 contains (x,y) aShape = aShape.start_x <= x &&  x <= aShape.cur_x
                         && aShape.start_y <= y && y <= aShape.cur_y
 
+delete aShape aList = filter (\iShape -> not (areEqual aShape iShape)) aList
+                        
 queryShape (x,y) aList = 
             let 
                 filteredList = filter (\aShape -> contains (x,y) aShape) aList
@@ -83,6 +85,10 @@ drawBoundingRect (width, height) aShape =
                       in
                         s
 
+makeActiveSelection (width, height) aShape =  
+                let s = drawBoundingRect (width, height) aShape in
+                s
+                    
 translate (width, height) aShape = ((toFloat aShape.cur_x) - (toFloat width / 2), (toFloat height / 2 - (toFloat aShape.cur_y)))
 
 drawRect (width, height) (aShape,aList) = 
@@ -96,7 +102,7 @@ drawHistory (width, height) aList = map (\s -> drawBoundingRect (width, height) 
 
 main = let 
             currentDragState = foldp updateDragState dragState Mouse.isDown
-            shapeExists = lift (\s -> queryShape s shapes) Mouse.position
+            selectedShape = lift (\s -> queryShape s shapes) Mouse.position
             bounds = foldp updateDrawingBounds  drawing_bounds (lift2 (,) 
                     currentDragState Mouse.position)
             shapeList = foldp updateShapes shapes (lift2 (,) bounds currentDragState)            
