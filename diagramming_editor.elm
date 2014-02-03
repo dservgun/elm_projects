@@ -1,6 +1,6 @@
 {-- Diagramming editor --}
-{-- The objective is to design a diagramming editor 
-using elm.--}
+
+
 
 import Mouse
 import Window
@@ -8,7 +8,6 @@ import Keyboard
 clearGrey = rgba 111 111 111 0.6
 {-- Features --}
 {-- Rubber band a currently selected shape --}
-{-- Refactor the drawingboard.elm code --}
 {-- Maintain a dictionary of shapes --}
 {-- Enable keyboard interaction to add text to a shape --}
 {-- Color selection widget --}
@@ -18,6 +17,8 @@ clearGrey = rgba 111 111 111 0.6
 {-- Shapes can be connected --}
 {-- FRP approach delays the actual composition to the main function. I need to follow the same
 style. Using point free style is also nice to read. --}
+
+
 
 
 

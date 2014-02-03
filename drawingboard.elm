@@ -1,6 +1,5 @@
 {-- Drawing board  --}
-{-- The objective of this board is to present a user with a list of selections 
-that can be rubberbandable.
+
 --}
 import Mouse
 import Window
