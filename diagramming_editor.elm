@@ -1,11 +1,10 @@
 {-- Diagramming editor --}
 
-
-
 import Mouse
 import Window
 import Keyboard
 clearGrey = rgba 111 111 111 0.6
+bordered clr = outlined (solid clr)
 {-- Features --}
 {-- Rubber band a currently selected shape --}
 {-- Maintain a dictionary of shapes --}
@@ -25,14 +24,22 @@ style. Using point free style is also nice to read. --}
 type DrawingRect = {start_x : Int, start_y: Int, end_x : Int, end_y: Int}
 type DiagramState = {user: String, prev_state : 
                      DrawingState, 
-                     state : DrawingState, current_rect : DrawingRect, history : [DrawingRect]}
+                     state : DrawingState, current_rect : DrawingRect, history : [DrawingRect]
+                    , selectedShape : DrawingRect
+                    , selectionColor : Color
+                    ,clickLocation : (Int, Int)}
 
 diagramState = {user = "No user",dimensions = (-1, -1), 
                 prevState = Released, state = Released , 
-                current_rect = initialRect, history = []}
+                current_rect = initialRect, history = [],
+                selectedShape = initialRect,
+                selectionColor = blue,
+                clickLocation = (-1, -1)}
                                                    
 initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1}    
-isValid aRect = not (aRect == initialRect) 
+sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y)
+    
+isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
 data DrawingState = Started | Released | Selected
 contains (x,y) aShape = aShape.start_x <= x && x <= aShape.end_x
                         && aShape.start_y <= y && y <= aShape.end_y
@@ -45,7 +52,7 @@ queryShape (x,y) aList =
                     case l of
                         [] -> initialRect
                         h :: t -> h
-                        _ -> initialRect -- There should be no duplicates. We need to maintain a dictionary
+                        _ -> initialRect
 
 
 updateDimensions (width, height) aState = {aState | dimensions <- (width, height)}
@@ -82,6 +89,11 @@ updateDragState isDown aState =
                 Started -> Released
     }
 
+
+updateClickLocation location aState = {aState | clickLocation <- location}                                               
+selectShape aState = {aState | selectedShape <- queryShape aState.clickLocation aState.history}
+
+
 updateDrawingBounds (x,y) aState = 
     let cur = aState.state
         prev = aState.prevState
@@ -99,6 +111,18 @@ updateDrawingBounds (x,y) aState =
 translate (width,height) aShape = ((toFloat aShape.end_x) - (toFloat width / 2), (toFloat height / 2 - (toFloat aShape.end_y)))
 getDimensions aRect = ((abs <| aRect.start_x - aRect.end_x), (abs <| aRect.start_y - aRect.end_y))
 
+drawSelectionRect aState aRect =
+    let 
+        (width, height) = aState.dimensions
+        (dx, dy) = translate (width, height) aRect
+        (rW, rH) = getDimensions aRect
+        s = rect (toFloat rW) (toFloat rH)
+                              |> bordered aState.selectionColor
+                              |> move (dx, dy)
+    in 
+      s
+
+    
 drawBoundingRect aState aRect =
     let 
         (width, height) = aState.dimensions
@@ -118,19 +142,22 @@ drawHistory aState =
       map (\s -> drawBoundingRect aState s) hist
 
 
-inputSignal = lift3 (,,) Mouse.isDown Mouse.position Window.dimensions
-handle (isDown, (x,y), (width, height)) = updateDrawingBounds (x,y) . 
+inputSignal = lift4 (,,,) Mouse.isDown Mouse.position Window.dimensions (sampleOn Mouse.clicks Mouse.position)
+handle (isDown, (x,y), (width, height),location) = updateDrawingBounds (x,y) . 
                                     updateDragState isDown .
                                     updateDimensions (width, height) .
-                                    updateHistory
+                                    updateHistory .
+                                    updateClickLocation location .
+                                    selectShape
 
 render dState = 
     let 
         (width, height) = dState.dimensions
         aRect = drawBoundingRect dState dState.current_rect
         rectHistory = drawHistory dState
+        selectedShape = drawSelectionRect dState dState.selectedShape
     in
-      layers [collage width height <| [aRect] ++ rectHistory]
+      layers [collage width height <| [aRect] ++ rectHistory ++ [selectedShape]]
 
 mainSignal = foldp handle diagramState inputSignal
-main =  render <~ mainSignal        
+main =  render <~ mainSignal
