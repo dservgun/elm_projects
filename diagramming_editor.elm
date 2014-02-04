@@ -21,7 +21,7 @@ style. Using point free style is also nice to read. --}
 
 
 
-type DrawingRect = {start_x : Int, start_y: Int, end_x : Int, end_y: Int}
+type DrawingRect = {start_x : Int, start_y: Int, end_x : Int, end_y: Int, text : String}
 type DiagramState = {user: String, prev_state : 
                      DrawingState, 
                      state : DrawingState, current_rect : DrawingRect, history : [DrawingRect]
@@ -36,7 +36,7 @@ diagramState = {user = "No user",dimensions = (-1, -1),
                 selectionColor = blue,
                 clickLocation = (-1, -1)}
                                                    
-initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1}    
+initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = "Enter text here" }    
 sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y)
     
 isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
@@ -102,7 +102,7 @@ selectShape aState = {aState | selectedShape <- queryShape aState.clickLocation 
 updateDrawingBounds (x,y) aState = 
     let cur = aState.state
         prev = aState.prevState
-        newRect x1 y1 x2 y2 = {start_x = x1, start_y = y1, end_x = x2, end_y = y2}
+        newRect x1 y1 x2 y2 = {start_x = x1, start_y = y1, end_x = x2, end_y = y2, text = "Enter text here"}
         c = aState.current_rect
     in
       {aState | current_rect <- 
@@ -125,8 +125,9 @@ drawSelectionRect aState aRect =
         s = rect (toFloat rW) (toFloat rH)
                               |> bordered aState.selectionColor
                               |> move (dx, dy)
+       
     in 
-      s
+      [s]
 
     
 drawBoundingRect aState aRect =
@@ -137,8 +138,9 @@ drawBoundingRect aState aRect =
         s = rect (toFloat rW) (toFloat rH)
                               |> filled clearGrey
                               |> move (dx, dy)
+        shapeText = (toForm <| plainText aRect.text) |> move (dx, dy)
     in 
-      s
+      [s, shapeText]
 
 drawHistory aState = 
     let 
@@ -163,7 +165,7 @@ render dState =
         rectHistory = drawHistory dState
         selectedShape = drawSelectionRect dState dState.selectedShape
     in
-      layers [collage width height <| [aRect] ++ rectHistory ++ [selectedShape], logMessage dState]
+      layers [collage width height <| ((aRect ++ (concat rectHistory) ++ selectedShape)) , logMessage dState]
 
 mainSignal = foldp handle diagramState inputSignal
 main =  render <~ mainSignal
