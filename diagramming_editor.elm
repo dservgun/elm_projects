@@ -41,9 +41,14 @@ sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y
     
 isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
 data DrawingState = Started | Released | Selected
-contains (x,y) aShape = aShape.start_x <= x && x <= aShape.end_x
-                        && aShape.start_y <= y && y <= aShape.end_y
-
+contains (x,y) aShape = 
+    let
+        width = abs <| aShape.end_x - aShape.start_x
+        height = abs <| aShape.end_y - aShape.start_y
+        (tx, ty) = ((aShape.end_x - width), (aShape.end_y - height))
+        (bx, by) = ((aShape.end_x + width), (aShape.end_y + height))
+    in
+      tx <= x && x <= bx && ty <= y && y <= by
                         
 queryShape (x,y) aList =
                 let 
@@ -111,6 +116,7 @@ updateDrawingBounds (x,y) aState =
 translate (width,height) aShape = ((toFloat aShape.end_x) - (toFloat width / 2), (toFloat height / 2 - (toFloat aShape.end_y)))
 getDimensions aRect = ((abs <| aRect.start_x - aRect.end_x), (abs <| aRect.start_y - aRect.end_y))
 
+
 drawSelectionRect aState aRect =
     let 
         (width, height) = aState.dimensions
@@ -157,7 +163,8 @@ render dState =
         rectHistory = drawHistory dState
         selectedShape = drawSelectionRect dState dState.selectedShape
     in
-      layers [collage width height <| [aRect] ++ rectHistory ++ [selectedShape]]
+      layers [collage width height <| [aRect] ++ rectHistory ++ [selectedShape], logMessage dState]
 
 mainSignal = foldp handle diagramState inputSignal
 main =  render <~ mainSignal
+logMessage aState = asText aState
