@@ -36,7 +36,7 @@ diagramState = {user = "No user",dimensions = (-1, -1),
                 selectionColor = blue,
                 clickLocation = (-1, -1)}
                                                    
-initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = "Enter text here" }    
+initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = "" }    
 sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y)
     
 isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
@@ -102,7 +102,7 @@ selectShape aState = {aState | selectedShape <- queryShape aState.clickLocation 
 updateDrawingBounds (x,y) aState = 
     let cur = aState.state
         prev = aState.prevState
-        newRect x1 y1 x2 y2 = {start_x = x1, start_y = y1, end_x = x2, end_y = y2, text = "Enter text here"}
+        newRect x1 y1 x2 y2 = {start_x = x1, start_y = y1, end_x = x2, end_y = y2, text = ""}
         c = aState.current_rect
     in
       {aState | current_rect <- 
@@ -117,30 +117,29 @@ translate (width,height) aShape = ((toFloat aShape.end_x) - (toFloat width / 2),
 getDimensions aRect = ((abs <| aRect.start_x - aRect.end_x), (abs <| aRect.start_y - aRect.end_y))
 
 
-drawSelectionRect aState aRect =
+drawRectWithText (width, height) aRect lineStyle color aText =
     let 
-        (width, height) = aState.dimensions
         (dx, dy) = translate (width, height) aRect
         (rW, rH) = getDimensions aRect
         s = rect (toFloat rW) (toFloat rH)
-                              |> bordered aState.selectionColor
+                              |> lineStyle color
                               |> move (dx, dy)
+        shapeText = (toForm <| plainText aText) |> move (dx, dy)
        
     in 
-      [s]
+      [s, shapeText]
 
     
-drawBoundingRect aState aRect =
-    let 
-        (width, height) = aState.dimensions
-        (dx, dy) = translate (width, height) aRect
-        (rW, rH) = getDimensions aRect
-        s = rect (toFloat rW) (toFloat rH)
-                              |> filled clearGrey
-                              |> move (dx, dy)
-        shapeText = (toForm <| plainText aRect.text) |> move (dx, dy)
-    in 
-      [s, shapeText]
+drawSelectionRect aState aRect = 
+    let
+        selectionText = if | aRect.text == "" -> "Enter text here"
+                           | otherwise -> aRect.text
+    in
+      drawRectWithText aState.dimensions aRect bordered aState.selectionColor selectionText                              
+
+    
+drawBoundingRect aState aRect = drawRectWithText aState.dimensions aRect filled clearGrey aRect.text
+
 
 drawHistory aState = 
     let 
