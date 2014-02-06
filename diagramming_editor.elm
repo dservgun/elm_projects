@@ -3,6 +3,8 @@
 import Mouse
 import Window
 import Keyboard
+import String
+import Char
 clearGrey = rgba 111 111 111 0.6
 bordered clr = outlined (solid clr)
 {-- Features --}
@@ -14,29 +16,36 @@ bordered clr = outlined (solid clr)
 {-- Actively selected shape can me moved, resized etc. --}
 {-- Mouseover on a shape should display a popup text --}
 {-- Shapes can be connected --}
+{-- Shapes should get saved using autosave --}
 {-- FRP approach delays the actual composition to the main function. I need to follow the same
 style. Using point free style is also nice to read. --}
 
 
 
 
-
+initialText = "Enter text here"
 type DrawingRect = {start_x : Int, start_y: Int, end_x : Int, end_y: Int, text : String}
 type DiagramState = {user: String, prev_state : 
                      DrawingState, 
                      state : DrawingState, current_rect : DrawingRect, history : [DrawingRect]
                     , selectedShape : DrawingRect
                     , selectionColor : Color
-                    ,clickLocation : (Int, Int)}
+                    ,clickLocation : (Int, Int)
+                    , charPressed : Keyboard.KeyCode
+                    , keysDown : [Keyboard.KeyCode]
+                    , currentText : String}
 
 diagramState = {user = "No user",dimensions = (-1, -1), 
                 prevState = Released, state = Released , 
                 current_rect = initialRect, history = [],
                 selectedShape = initialRect,
                 selectionColor = blue,
-                clickLocation = (-1, -1)}
+                clickLocation = (-1, -1),
+                charPressed = -1,
+                keysDown = [], 
+                currentText = ""}
                                                    
-initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = "" }    
+initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = ""}    
 sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y)
     
 isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
@@ -70,12 +79,13 @@ updateHistory aState =
     in    
         case aState.state of 
             Released -> {aState | history <- case hist of
-                                  [] -> if | isValid s -> [s]
-                                           | otherwise -> []
-                                  h::t -> if 
-                                            | (not (h == s)) && (isValid s) -> s :: hist
-                                            | otherwise -> hist
-                                  }
+                                               [] -> if 
+                                                   | isValid s -> [s]
+                                                   | otherwise -> []
+                                               h::t -> if 
+                                                      | (not (h == s)) && (isValid s) -> s :: hist
+                                                      | otherwise -> hist
+                        }
             -- No op
             Started -> aState
         
@@ -95,20 +105,47 @@ updateDragState isDown aState =
     }
 
 
+
+getString keysDown = case keysDown of
+                       [] -> ""
+                       h::t -> String.fromList [Char.fromCode h]
+
 updateClickLocation location aState = {aState | clickLocation <- location}                                               
 selectShape aState = {aState | selectedShape <- queryShape aState.clickLocation aState.history}
 
+{-- Update the text for the currently selected shape --}
+{-- There can be only one selected shape --}
 
+updateSelectedText (_,keysDown) aState =
+    let 
+        sShape = aState.selectedShape
+        current_rect = aState.current_rect
+        prevText = sShape.text
+        newChar = getString keysDown
+    in
+      {aState| selectedShape <- {text = aState.currentText ++ newChar, start_x = sShape.start_x,
+                                start_y = sShape.start_y, 
+                                end_x = sShape.end_x,
+                                end_y = sShape.end_y},
+       currentText <- aState.currentText ++ newChar,
+       current_rect <- {text = aState.currentText ++  newChar, start_x = current_rect.start_x,
+                       start_y = current_rect.start_y, end_x = current_rect.end_x, 
+                       end_y = current_rect.end_y}
+      }
+
+
+
+    
 updateDrawingBounds (x,y) aState = 
     let cur = aState.state
         prev = aState.prevState
-        newRect x1 y1 x2 y2 = {start_x = x1, start_y = y1, end_x = x2, end_y = y2, text = ""}
+        newRect x1 y1 x2 y2 iText = {start_x = x1, start_y = y1, end_x = x2, end_y = y2, text = iText}
         c = aState.current_rect
     in
       {aState | current_rect <- 
                   case (cur, prev) of
-                    (Started, Released) -> newRect x y x y
-                    (Started, Started)-> newRect c.start_x c.start_y x y
+                    (Started, Released) -> newRect x y x y ""
+                    (Started, Started)-> newRect c.start_x c.start_y x y initialText
                     (Released, Released)-> initialRect
                     (Released, Started) -> c
       }
@@ -117,28 +154,23 @@ translate (width,height) aShape = ((toFloat aShape.end_x) - (toFloat width / 2),
 getDimensions aRect = ((abs <| aRect.start_x - aRect.end_x), (abs <| aRect.start_y - aRect.end_y))
 
 
-drawRectWithText (width, height) aRect lineStyle color aText =
+drawRectWithText (width, height) aRect lineStyle color =
     let 
         (dx, dy) = translate (width, height) aRect
         (rW, rH) = getDimensions aRect
+        aText = aRect.text
         s = rect (toFloat rW) (toFloat rH)
                               |> lineStyle color
                               |> move (dx, dy)
-        shapeText = (toForm <| plainText aText) |> move (dx, dy)
-       
+        shapeText = (toForm <| plainText aText) |> move (dx, dy)       
     in 
       [s, shapeText]
 
     
-drawSelectionRect aState aRect = 
-    let
-        selectionText = if | aRect.text == "" -> "Enter text here"
-                           | otherwise -> aRect.text
-    in
-      drawRectWithText aState.dimensions aRect bordered aState.selectionColor selectionText                              
-
+drawSelectionRect aState aRect = drawRectWithText aState.dimensions aRect bordered 
+                                 aState.selectionColor
     
-drawBoundingRect aState aRect = drawRectWithText aState.dimensions aRect filled clearGrey aRect.text
+drawBoundingRect aState aRect = drawRectWithText aState.dimensions aRect filled clearGrey
 
 
 drawHistory aState = 
@@ -148,14 +180,20 @@ drawHistory aState =
     in
       map (\s -> drawBoundingRect aState s) hist
 
+updateKeysDown keys aState = {aState | keysDown <- keys}
 
-inputSignal = lift4 (,,,) Mouse.isDown Mouse.position Window.dimensions (sampleOn Mouse.clicks Mouse.position)
-handle (isDown, (x,y), (width, height),location) = updateDrawingBounds (x,y) . 
+inputSignal = lift5 (,,,,) Mouse.isDown Mouse.position Window.dimensions 
+              (sampleOn Mouse.clicks Mouse.position) (Keyboard.keysDown)
+handle (isDown, (x,y), (width, height),location, keysDown) = updateDrawingBounds (x,y) . 
                                     updateDragState isDown .
                                     updateDimensions (width, height) .
                                     updateHistory .
                                     updateClickLocation location .
-                                    selectShape
+                                    selectShape .
+                                    updateSelectedText ((x,y), keysDown) .
+                                    updateKeysDown keysDown
+                                 
+
 
 render dState = 
     let 
