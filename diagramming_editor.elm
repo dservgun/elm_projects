@@ -8,7 +8,6 @@ import Char
 clearGrey = rgba 111 111 111 0.6
 bordered clr = outlined (solid clr)
 {-- Features --}
-{-- Rubber band a currently selected shape --}
 {-- Maintain a dictionary of shapes --}
 {-- Enable keyboard interaction to add text to a shape --}
 {-- Color selection widget --}
@@ -18,16 +17,30 @@ bordered clr = outlined (solid clr)
 {-- Shapes can be connected --}
 {-- Shapes should get saved using autosave --}
 {-- FRP approach delays the actual composition to the main function. I need to follow the same
-style. Using point free style is also nice to read. --}
+style. Using point free style is also nice to read.
+One of the reasons for choosing this application is to try to reproduce commonly occuring widgets
+and structure the code in a manner that is maintainable. Here maintainable is defined roughly as follows:
+Ref: http://blog.reactiveprogramming.org/wp-uploads/2013/12/FRP4.pdf
+Features a and b are compositional if the complexity of  A + B is 
+the sum of complexities of A and B
+A drawing application has many features that users tend to expect to even cross 
+a minimal threshold of usability therefore the core feature list is itself quite 
+long, therefore serves as a good example of testing the composability of a functional 
+reactive program.
+In the current file or any of the elm examples on the site, the 
+mainSignal is an example of composition of different signals and the render 
+function displays the model. So when we add new features we need to expect
+a high level update function to update the state and another to render the new feature.--}
 
 
 
 
-initialText = "Enter text here"
+initialText = ""
 type DrawingRect = {start_x : Int, start_y: Int, end_x : Int, end_y: Int, text : String}
 type DiagramState = {user: String, prev_state : 
                      DrawingState, 
                      state : DrawingState, current_rect : DrawingRect, history : [DrawingRect]
+                    ,selectionHistory : [DrawingRect]
                     , selectedShape : DrawingRect
                     , selectionColor : Color
                     ,clickLocation : (Int, Int)
@@ -38,6 +51,7 @@ type DiagramState = {user: String, prev_state :
 diagramState = {user = "No user",dimensions = (-1, -1), 
                 prevState = Released, state = Released , 
                 current_rect = initialRect, history = [],
+                selectionHistory = [],
                 selectedShape = initialRect,
                 selectionColor = blue,
                 clickLocation = (-1, -1),
@@ -47,7 +61,8 @@ diagramState = {user = "No user",dimensions = (-1, -1),
                                                    
 initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = ""}    
 sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y)
-    
+
+isEqual r1 r2 = r1.start_x == r2.start_x && r1.start_y == r2.start_y && r1.end_x == r2.end_x && r1.end_y == r2.end_y    
 isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
 data DrawingState = Started | Released | Selected
 contains (x,y) aShape = 
@@ -66,28 +81,31 @@ queryShape (x,y) aList =
                     case l of
                         [] -> initialRect
                         h :: t -> h
-                        _ -> initialRect
 
 
 updateDimensions (width, height) aState = {aState | dimensions <- (width, height)}
--- All functions need to update the state so that we 
--- can invoke a foldp and use the point free style                        
+
 updateHistory aState = 
     let 
-        s = aState.current_rect 
+        s = aState.current_rect
         hist = aState.history
+        cur = aState.state
+        prev = aState.prevState
     in    
-        case aState.state of 
-            Released -> {aState | history <- case hist of
-                                               [] -> if 
-                                                   | isValid s -> [s]
-                                                   | otherwise -> []
-                                               h::t -> if 
-                                                      | (not (h == s)) && (isValid s) -> s :: hist
-                                                      | otherwise -> hist
-                        }
-            -- No op
-            Started -> aState
+        case (prev, cur) of 
+          (Released, Released) -> {aState | 
+                                history <- case hist of
+                                             [] -> if 
+                                                 | isValid s -> [s]
+                                                 | otherwise -> []
+                                             h::t -> if 
+                                                    | (not (isEqual h s)) && (isValid s) -> s :: hist
+                                                    | otherwise -> hist
+                      }
+            {-- No op --}
+          (Released, Started) -> aState
+          (Started, Started) -> aState
+          (Started, Released) -> aState
         
         
 updateDragState isDown aState = 
@@ -111,26 +129,37 @@ getString keysDown = case keysDown of
                        h::t -> String.fromList [Char.fromCode h]
 
 updateClickLocation location aState = {aState | clickLocation <- location}                                               
-selectShape aState = {aState | selectedShape <- queryShape aState.clickLocation aState.history}
-
+selectShape aState = 
+    let selectedShape = aState.selectedShape in
+    {aState | selectedShape <- queryShape aState.clickLocation aState.history
+    }
 {-- Update the text for the currently selected shape --}
 {-- There can be only one selected shape --}
 
-updateSelectedText (_,keysDown) aState =
-    let 
-        sShape = aState.selectedShape
-        current_rect = aState.current_rect
-        prevText = sShape.text
-        newChar = getString keysDown
+replace aText current_rect aHistory = map (\aRect -> 
+                                               if | isEqual aRect current_rect -> {aRect| text <- aText}
+                                                  |otherwise -> aRect) aHistory
+find aRect aHistory = 
+    let
+        q = filter (\x  -> isEqual x aRect) aHistory
     in
-      {aState| selectedShape <- {text = aState.currentText ++ newChar, start_x = sShape.start_x,
-                                start_y = sShape.start_y, 
-                                end_x = sShape.end_x,
-                                end_y = sShape.end_y},
-       currentText <- aState.currentText ++ newChar,
-       current_rect <- {text = aState.currentText ++  newChar, start_x = current_rect.start_x,
-                       start_y = current_rect.start_y, end_x = current_rect.end_x, 
-                       end_y = current_rect.end_y}
+      case q of
+        [] -> initialRect
+        h::t-> h
+
+    
+updateSelectedText keysDown aState =
+    let 
+        sShape = aState.current_rect
+        newChar = getString keysDown
+        ss = aState.selectedShape
+        current_rect = aState.current_rect
+        history = aState.history
+        newText = sShape.text ++ newChar
+    in
+      {
+        aState|current_rect <- {sShape | text <- newText},
+                               history <- replace newText current_rect history
       }
 
 
@@ -145,8 +174,8 @@ updateDrawingBounds (x,y) aState =
       {aState | current_rect <- 
                   case (cur, prev) of
                     (Started, Released) -> newRect x y x y ""
-                    (Started, Started)-> newRect c.start_x c.start_y x y initialText
-                    (Released, Released)-> initialRect
+                    (Started, Started)-> newRect c.start_x c.start_y x y c.text
+                    (Released, Released)-> c
                     (Released, Started) -> c
       }
 
@@ -190,19 +219,18 @@ handle (isDown, (x,y), (width, height),location, keysDown) = updateDrawingBounds
                                     updateHistory .
                                     updateClickLocation location .
                                     selectShape .
-                                    updateSelectedText ((x,y), keysDown) .
+                                    updateSelectedText keysDown .
                                     updateKeysDown keysDown
                                  
-
 
 render dState = 
     let 
         (width, height) = dState.dimensions
         aRect = drawBoundingRect dState dState.current_rect
         rectHistory = drawHistory dState
-        selectedShape = drawSelectionRect dState dState.selectedShape
+        selectedShape = drawSelectionRect dState dState.current_rect
     in
-      layers [collage width height <| ((aRect ++ (concat rectHistory) ++ selectedShape)) , logMessage dState]
+      layers [collage width height <| (aRect ++ (concat rectHistory)), logMessage dState]
 
 mainSignal = foldp handle diagramState inputSignal
 main =  render <~ mainSignal
