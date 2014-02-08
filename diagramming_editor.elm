@@ -36,6 +36,7 @@ a high level update function to update the state and another to render the new f
 
 
 initialText = ""
+
 type DrawingRect = {start_x : Int, start_y: Int, end_x : Int, end_y: Int, text : String}
 type DiagramState = {user: String, prev_state : 
                      DrawingState, 
@@ -62,6 +63,11 @@ diagramState = {user = "No user",dimensions = (-1, -1),
 initialRect = {start_x = -1, start_y = -1, end_x = -1, end_y = -1, text = ""}    
 sqrtArea {start_x, start_y, end_x, end_y} = (end_x - start_x) * (end_y - start_y)
 
+
+translate (width,height) aShape = ((toFloat aShape.end_x) - (toFloat width / 2), (toFloat height / 2 - (toFloat aShape.end_y)))
+getDimensions aRect = ((abs <| aRect.start_x - aRect.end_x), (abs <| aRect.start_y - aRect.end_y))
+
+
 isEqual r1 r2 = r1.start_x == r2.start_x && r1.start_y == r2.start_y && r1.end_x == r2.end_x && r1.end_y == r2.end_y    
 isValid aRect = (not (aRect == initialRect)) && (not (sqrtArea aRect == 0))
 data DrawingState = Started | Released | Selected
@@ -83,8 +89,22 @@ queryShape (x,y) aList =
                         h :: t -> h
 
 
-updateDimensions (width, height) aState = {aState | dimensions <- (width, height)}
+getString keysDown = case keysDown of
+                       [] -> ""
+                       h::t -> String.fromList [Char.fromCode h]
 
+
+find aRect aHistory = 
+    let
+        q = filter (\x  -> isEqual x aRect) aHistory
+    in
+      case q of
+        [] -> initialRect
+        h::t-> h
+
+
+
+updateDimensions (width, height) aState = {aState | dimensions <- (width, height)}
 updateHistory aState = 
     let 
         s = aState.current_rect
@@ -124,11 +144,8 @@ updateDragState isDown aState =
 
 
 
-getString keysDown = case keysDown of
-                       [] -> ""
-                       h::t -> String.fromList [Char.fromCode h]
-
 updateClickLocation location aState = {aState | clickLocation <- location}                                               
+
 selectShape aState = 
     let selectedShape = aState.selectedShape in
     {aState | selectedShape <- queryShape aState.clickLocation aState.history
@@ -139,14 +156,6 @@ selectShape aState =
 replace aText current_rect aHistory = map (\aRect -> 
                                                if | isEqual aRect current_rect -> {aRect| text <- aText}
                                                   |otherwise -> aRect) aHistory
-find aRect aHistory = 
-    let
-        q = filter (\x  -> isEqual x aRect) aHistory
-    in
-      case q of
-        [] -> initialRect
-        h::t-> h
-
     
 updateSelectedText keysDown aState =
     let 
@@ -179,9 +188,8 @@ updateDrawingBounds (x,y) aState =
                     (Released, Started) -> c
       }
 
-translate (width,height) aShape = ((toFloat aShape.end_x) - (toFloat width / 2), (toFloat height / 2 - (toFloat aShape.end_y)))
-getDimensions aRect = ((abs <| aRect.start_x - aRect.end_x), (abs <| aRect.start_y - aRect.end_y))
 
+updateKeysDown keys aState = {aState | keysDown <- keys}
 
 drawRectWithText (width, height) aRect lineStyle color =
     let 
@@ -209,8 +217,6 @@ drawHistory aState =
     in
       map (\s -> drawBoundingRect aState s) hist
 
-updateKeysDown keys aState = {aState | keysDown <- keys}
-
 inputSignal = lift5 (,,,,) Mouse.isDown Mouse.position Window.dimensions 
               (sampleOn Mouse.clicks Mouse.position) (Keyboard.keysDown)
 handle (isDown, (x,y), (width, height),location, keysDown) = updateDrawingBounds (x,y) . 
@@ -221,8 +227,8 @@ handle (isDown, (x,y), (width, height),location, keysDown) = updateDrawingBounds
                                     selectShape .
                                     updateSelectedText keysDown .
                                     updateKeysDown keysDown
-                                 
 
+                                 
 render dState = 
     let 
         (width, height) = dState.dimensions
