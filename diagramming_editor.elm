@@ -218,7 +218,7 @@ drawHistory aState =
       map (\s -> drawBoundingRect aState s) hist
 
 inputSignal = lift5 (,,,,) Mouse.isDown Mouse.position Window.dimensions 
-              (sampleOn Mouse.clicks Mouse.position) (Keyboard.keysDown)
+              (sampleOn Mouse.clicks Mouse.position) Keyboard.keysDown
 handle (isDown, (x,y), (width, height),location, keysDown) = updateDrawingBounds (x,y) . 
                                     updateDragState isDown .
                                     updateDimensions (width, height) .
