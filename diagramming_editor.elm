@@ -25,7 +25,7 @@ Features a and b are compositional if the complexity of  A + B is
 the sum of complexities of A and B
 A drawing application has many features that users tend to expect to even cross 
 a minimal threshold of usability therefore the core feature list is itself quite 
-long, therefore serves as a good example of testing the composability of a functional 
+long, and serves as a good example of testing the composing a functional 
 reactive program.
 In the current file or any of the elm examples on the site, the 
 mainSignal is an example of composition of different signals and the render 
