@@ -26,5 +26,5 @@ handleConnection pending = do
 echo conn = 
   forever $ do
      msg <- WS.receiveData conn
-     TIO.putStrLn(msg `T.append` ", meow")
-     WS.sendTextData conn $ msg `T.append` ", woof"
+     TIO.putStrLn(msg)
+     WS.sendTextData conn msg
