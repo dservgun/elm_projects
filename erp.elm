@@ -30,6 +30,7 @@ parseJsonValue aValue = aValue
                    
 incoming : Signal String
 incoming = WebSocket.connect defaultUrl (sendJsonString <~ name ~ emailId)
+{-- Maintaining users --}
 (name, emailId) = (sampleOn entered content, sampleOn entered content2)
 
 (field1, content) = Input.field "Name"
