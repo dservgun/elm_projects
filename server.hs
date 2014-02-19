@@ -6,6 +6,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative ( (<$>) )
 import Control.Monad (forever)
+import Control.Exception(bracket)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Network.WebSockets as WS
@@ -35,26 +36,41 @@ lookupEmail email =
   do AddressBook a <- ask
      return (Map.lookup email a)
 
-$(makeAcidic ''AddressBook ['insertEmail, 'lookupEmail])
+viewMessages :: Int  -> Query AddressBook [Email]
+viewMessages aNumber =
+  do AddressBook a <- ask
+     return $ take aNumber (Map.keys a)
+     
+$(makeAcidic ''AddressBook ['insertEmail, 'lookupEmail, 'viewMessages])
 
 main :: IO ()
-main = do
-  test <- getEnv "os"
-  putStrLn("Starting server on. - ." ++ test)
-  WS.runServer "127.0.0.1" 8082 $ handleConnection
+main = 
+  bracket
+  (openLocalState $ AddressBook Map.empty)
+  closeAcidState
+  (\acid -> WS.runServer "127.0.0.1" 8082 $ handleConnection acid)
 
 {--
 A simple echo.
 --}
 
-handleConnection pending = do
+handleConnection acid pending = do
+  os <- getEnv("os")
+  putStrLn("Starting server on. - ." ++ os)
   conn <- WS.acceptRequest pending
   putStrLn("Accepted connection")
-  echo conn
+  sendHistory conn acid
+  echo conn acid
 
 
-echo conn = 
+sendHistory conn acid =
+  do
+    messages <- query acid (ViewMessages 100)
+    mapM_ (\m -> WS.sendTextData conn (T.pack m)) messages
+
+echo conn acid = 
   forever $ do
      msg <- WS.receiveData conn
      TIO.putStrLn(msg)
+     update acid $ InsertEmail (T.unpack msg)  (T.unpack msg)
      WS.sendTextData conn msg
